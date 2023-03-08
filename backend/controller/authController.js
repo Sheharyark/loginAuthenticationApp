@@ -17,11 +17,6 @@ router.get('/allUsers', async (req, res) => {
     status: 'Success',
     data: allUsers,
   })
-  //   let allUsers = await User.find({}, (err, data) => {
-  //     if (err) throw err
-  //     res.send(data)
-  //   }).exec()
-  //   res.send(allUsers)
 })
 
 //register user
@@ -43,5 +38,32 @@ router.post('/register', async (req, res) => {
     await user.save()
     res.send(user)
   }
+})
+
+//login
+router.post('/login', async (req, res) => {
+  let user = await User.findOne({ email: req.body.email })
+  if (!user) {
+    return res.status(400).send('Oops! NO user existed...')
+  } else {
+    const passIsValid = bcrypt.compareSync(req.body.password, user.password)
+    if (!passIsValid) res.send({ auth: false, token: 'Invalid Password' })
+    // in case bot are correct generate token
+    let token = jwt.sign({ id: user._id }, config.secret, { expiresIn: 86400 }) //24hr
+    res.send({ auth: true, token: token })
+  }
+})
+
+//user Info
+router.get('userInfo', async (req, res) => {
+  let token = await req.headers['x-access-token']
+  if (!token) res.send({ auth: false, token: 'No Token Provider' })
+  //jwt verify
+  jwt.verify(token, config.secret, (err, user) => {
+    if (err) res.send({ auth: false, token: 'Invalid user' })
+    User.findById(user.id, (err, result) => {
+      res.send(result)
+    })
+  })
 })
 module.exports = router
